@@ -1,0 +1,111 @@
+---
+title: "Life_expectancy"
+output: pdf_document
+---
+
+```{r message=FALSE}
+library(rvest)
+library(ggplot2)
+library(dplyr)
+library(maps)
+library(scales)
+```
+
+## Import data from wikipedia
+```{r}
+life_expect <- read_html("https://en.wikipedia.org/wiki/List_of_U.S._states_by_life_expectancy")
+```
+
+## Convert data into a table
+```{r}
+life_expect <- life_expect %>%
+  html_nodes(xpath = "//table") %>%
+  .[[3]] %>%
+  html_table(fill = T)
+```
+
+## Clean life_expect data frame by selecting required columns
+```{r}
+life_expect <- life_expect[, c(3:6)]
+```
+
+## Rename the columns
+```{r}
+names(life_expect)[c(1, 2, 3, 4)] <- c("region", "life_expect_all", "life_expect_White", "life_expect_Black")
+```
+
+## Convert black and white expectancy to numeric variables:
+```{r warning=FALSE}
+life_expect <- life_expect %>%
+  mutate(
+    life_expect_White = as.numeric(life_expect_White),
+    life_expect_Black = as.numeric(life_expect_Black),
+    region = tolower(region)
+        )
+```
+
+## Compute the difference between black and white life expect:
+```{r}
+life_expect <- life_expect %>%
+  mutate(life_expect_diff = life_expect_White - life_expect_Black)
+```
+
+## How many regions(states) where African Americans live more than white Americans:
+```{r}
+life_expect %>%
+  filter(life_expect_diff < 0) %>%
+  arrange(desc(life_expect_diff))
+```
+  There are 9 states where life_expect is larger for African Americans with the highest value for New Hamsphire.
+
+## How many regions(states) where life expectancy is larger for white Americans than African Americans:
+```{r}
+life_expect %>%
+  filter(life_expect_diff > 0) %>%
+  arrange(desc(life_expect_diff))
+```
+  There are 42 states where life_expect is larger for white American with the highest value for District of Columbia.
+
+## Load the map data:
+```{r warning=FALSE}
+states = map_data("state")
+str(states)
+```
+
+## Merge the two datasets:
+```{r warning=FALSE}
+states <- merge(states, life_expect, by = "region", all.x = T)
+str(states)
+```
+
+## Map of difference in life expectancy between White Americans & African Americans
+```{r}
+ggplot(data = states, aes(x = long, y = lat, group = group, fill = life_expect_diff)) + geom_polygon(col = "white") + 
+  scale_fill_gradient(name = "Years", low = "#132B43", high = "#56B1F7", guide = "colorbar", na.value = "lightblue", breaks = pretty_breaks(n = 5)) + 
+  labs(title = "Difference in Life Expectancy between African Americans & white Americans")
+```
+
+## Map of African Americans life expectancy
+```{r}
+ggplot(data = states, aes(x = long, y = lat, group = group, fill = life_expect_Black)) + geom_polygon(col = "white") + 
+  scale_fill_gradient(name = "Years", low = "#ffe8ee", high = "#c81f49", guide = "colorbar", na.value = "lightblue", breaks = pretty_breaks(n = 5)) + 
+  labs(title = "Life Expectancy for African Americans")
+```
+
+## Map of White Americans life expectancy
+```{r}
+ggplot(data = states, aes(x = long, y = lat, group = group, fill = life_expect_White)) + geom_polygon(col = "white") + 
+  scale_fill_gradient(name = "Years", low = "#ffe8ee", high = "#c81f49", guide = "colorbar", na.value = "lightblue", breaks = pretty_breaks(n = 5)) + 
+  labs(title = "Life Expectancy for White Americans")
+```
+
+ 
+
+## Map of US states by life expectancy 
+```{r} 
+ggplot(data = states, aes(x = long, y = lat, group = group, fill = life_expect_all)) + geom_polygon(col = "white") + 
+    scale_fill_gradient(name = "Years", low = "#132B43", high = "#56B1F7", guide = "colorbar", na.value = "lightblue", breaks = pretty_breaks(n = 5)) + 
+    labs(title = "Life Expectancy in the USA")
+``` 
+
+  
